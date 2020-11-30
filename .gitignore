@@ -1,1 +1,16 @@
+# jsonFiles
+.agf
+default.project.json
+rojo.json
+selene.toml
+settings.json
 
+##Framework
+Server
+Shared
+_framework
+Controllers
+CameraShaker
+Smooth 
+Tween 
+PID.lua

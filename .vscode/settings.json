@@ -1,0 +1,7 @@
+{
+  "files.exclude": {
+    "src/_framework/": true,
+    ".vscode": true
+  },
+  "files.autoSave": "onFocusChange"
+}

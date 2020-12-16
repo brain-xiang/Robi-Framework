@@ -1,16 +1,25 @@
-# jsonFiles
-.agf
-default.project.json
-rojo.json
-selene.toml
-settings.json
+# # jsonFiles
+# .agf
+# default.project.json
+# rojo.json
+# selene.toml
+# settings.json
 
-# Aero Framework
-Server
-Shared
-_framework
-Controllers
-CameraShaker
-Smooth 
-Tween 
-PID.lua
+# # Aero Framework
+# Services
+# Data
+# ProfileService.lua
+# Base64
+# Date.lua
+# ListenerList.lua
+# NumberUtil.lua
+# Signal.lua
+# StringUtil.lua
+# _framework
+# UserInput
+# Fade.lua
+# TaskScheduler.lua
+# CameraShaker
+# Smooth 
+# Tween 
+# PID.lua

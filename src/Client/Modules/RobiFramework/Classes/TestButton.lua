@@ -31,16 +31,6 @@ function Class.new()
             TweenService:Create(button, tweenInfo, {Size = button.Size - UDim2.new(0,10,0,10)}):Play()
 		end;
 	};
-	
-	self.visibleChanged = {
-		[true] = function(button, ...)
-			
-		end;
-		
-		[false] = function(button, ...)
-			
-		end;
-	};
 
 	return self
 end

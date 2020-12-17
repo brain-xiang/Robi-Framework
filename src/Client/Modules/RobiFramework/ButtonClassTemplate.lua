@@ -11,6 +11,7 @@ Class.__index = Class
 function Class.new()
 	local self = setmetatable({}, Class)
 	self.hovered = false
+	self.parent = nil
 
 	self.activated = function(button, inputObject, clickCount, ...)
 		

@@ -8,8 +8,32 @@ Main.__index = Main
 
 function Main.createButton(button, Objects, hiarchy)
 	--[[
-		button = GuiObject, Objects = dic of Robi Objects
-		returns: GuiObject containing, maid, parsedObjects functions and connects all the objects together 
+		inputs: 
+			button = GuiObject, 
+			Objects = dic of Robi classes used to create the button object
+				Example = {
+					hoverButton = require(hoverButton).new()
+				}
+			hiarchy = tbl, all robi objects created are stored using a predicatble hiarchial structure, this variable specefies where this object will be stored. more details on hiarchy found in docStrings below(Main:addToHiarchy())
+		
+		Events:
+			This contructor creates and holds all the Event connections of the button. 
+			It rewires the events and forwards them to all the  classes used in the objectio.
+			All events are stored in:
+				self.maid
+			and can be cleaned up using: 
+				self:Destroy()	
+		
+		returns: Robi-Object
+			injectedProperties: 
+				self.name - string name
+				self.element - roblox gui element
+				self.type - string, object type
+				self.hiarchy - tbl, Robi-hiarchy
+			
+			self injected into each individual object that this object inherited from as a "parent" property.
+
+			All functions in Main are also metatabled to this object
 	]]
 	local self = setmetatable({unpack(Objects)}, Main)
 	self.name = button.Name
@@ -17,13 +41,9 @@ function Main.createButton(button, Objects, hiarchy)
 	self.type = "button"
 	self.hiarchy = hiarchy
 
-	--injecting properties into objects
+	--injecting parent property into objects
 	for i,Object in pairs(Objects) do 
 		Object.parent = self
-		Object.name = self.name
-		Object.element = self.element
-		Object.type = self.type
-		Object.hiarchy = self.hiarchy
 	end
 
 	--Events
@@ -73,37 +93,82 @@ function Main.createButton(button, Objects, hiarchy)
 	return self
 end
 
-function Main.createLabel(Label, Objects)
+function Main.createLabel(Label, Objects, hiarchy)
 	--[[
-		Label = GuiObject, Objects = dic of Robi Objects
-		returns: GuiObject containing, maid, parsedObjects functions and connects all the objects together 
+		inputs: 
+			button = GuiObject, 
+			Objects = dic of Robi classes used to create the button object
+				Example = {
+					hoverButton = require(hoverButton).new()
+				}
+			hiarchy = tbl, all robi objects created are stored using a predicatble hiarchial structure, this variable specefies where this object will be stored. more details on hiarchy found in docStrings below(Main:addToHiarchy())
+		
+		Events:
+			This contructor creates and holds all the Event connections of the button. 
+			It rewires the events and forwards them to all the  classes used in the objectio.
+			All events are stored in:
+				self.maid
+			and can be cleaned up using: 
+				self:Destroy()	
+		
+		returns: Robi-Object
+			injectedProperties: 
+				self.name - string name
+				self.element - roblox gui element
+				self.type - string, object type
+				self.hiarchy - tbl, Robi-hiarchy
+			All injectedProperties are also injected into each individual object thats inherited from.
+
+			All functions in Main are also metatabled to this object
 	]]
+
 	local self = setmetatable({unpack(Objects)}, Main)
 	self.name = Label.Name
 	self.element = Label
 	self.type = "label"
 	self.hiarchy = hiarchy
+	self.stores = {}
+	for i,Object in pairs(Objects) do -- filling stores list with stores from inherited classes
+		if Object.storeChangedFunctions then
+			for store, func in pairs(Object.storeChangedFunctions) do
+				if self.stores[store] then
+					table.insert( self.stores[store], func )
+				else
+					self.stores[store] = {func}
+				end
+			end
+		end
+	end
 
-	--injecting properties into objects
+	--injecting parent property into objects
 	for i,Object in pairs(Objects) do 
 		Object.parent = self
-		Object.name = self.name
-		Object.element = self.element
-		Object.type = self.type
-		Object.hiarchy = self.hiarchy
 	end
 
 	--Maid--
 	self.maid = Maid.new() -- creating maid object
 
 	--Events--
-	for i,Object in pairs(Objects) do 
-		self.maid:GiveTask(Object.store.changed:connect(function(newState, oldState)
-			Object.changed(Label, newState, oldState)
+	for store, functions in pairs(self.stores) do 
+		self.maid:GiveTask(store.changed:connect(function(newState, oldState)
+			for i,func in pairs(functions) do
+				func(newState, oldState)
+			end
 		end))
 	end
+	
+
+	self.visibleChanged = Label:GetPropertyChangedSignal("Visible"):Connect(function()
+		for i,Object in pairs(Objects) do 
+			if Object.visibleChanged then
+				Object.visibleChanged[Label.Visible](Label)
+			end
+		end
+	end)
+	self.maid:GiveTask(self.visibleChanged)
 
 	--hiarchy
+	print(self.hiarchy)
 	local parentStructure = self:mapParentStructure(self.element)
 	self:addToHiarchy(self, parentStructure, hiarchy)
 
@@ -115,13 +180,14 @@ function Main:findObject(name, hiarchy)
 		input: (only name needed), hiarchy = list, if you want to specify start location of search
 		returns: first abject fround in this object's hiarchy with matching name
 	]]
+
 	hiarchy = hiarchy or self.hiarchy
 
 	for i,v in pairs(hiarchy) do
 		if v.name == name then 
 			return v
 		elseif typeof(v) == "table" then 
-			self:getAllObjects(v, list)
+			self:findObject(name, v)
 		end
 	end
 
@@ -133,6 +199,7 @@ function Main:getAllObjects(hiarchy, list)
 		input: not needed, hiarchy = list, if you want to specify start location of search
 		returns: all abjects of this object's hiarchy put into one large list
 	]]
+
 	list = list or {}
 	hiarchy = hiarchy or self.hiarchy
 
@@ -151,7 +218,21 @@ function Main:addToHiarchy(object, parentStructure, hiarchy)
 	--[[
 		input: object = Robi gui objects contructed in Main, hiarchy = dictionary where objects are stored for ease of access
 		puts robi object into a dictionary of hiarchinal structure based on elements hiarchial position in roblox workspace
+
+		Note: All keys in Robi hiarchies are "strings"
+		Hiarchy structure = {
+			frame = {
+				object = nil, --means this step in hiarchy does not contain Robi object
+				button1 = {
+					object = {*RobiObject*}
+				}
+			}
+			button2 = {
+				object = {*RobiObject*}
+			}
+		}
 	]]
+
 	if #parentStructure < 1 then warn("Overlapping Hiarchyname: ".. "(".. object.element.Name.. ")".. " Hiarychy = ".. hiarchy) return end
 	
 	local current = hiarchy -- table
@@ -173,6 +254,7 @@ function Main:mapParentStructure(element)
 		input: gui element, table = nil
 		returns: table of an elements parents in descending order up until screenGui, example: {Frame, Button, element}
 	]]
+
 	local parents = {}
 
 	repeat

@@ -18,26 +18,6 @@ function Class.new()
             object.element.BackgroundColor3 = Color3.fromRGB(math.random(0,255), math.random(0,255), math.random(0,255))
         end
 	end;
-	
-	self.hoverChanged = {
-		[true] = function(button, ...)
-			self.hovered = true
-		end;
-		
-		[false] = function(button, ...)
-			self.hovered = false
-		end;
-	};
-	
-	self.visibleChanged = {
-		[true] = function(button, ...)
-			
-		end;
-		
-		[false] = function(button, ...)
-			
-		end;
-	};
 
 	return self
 end

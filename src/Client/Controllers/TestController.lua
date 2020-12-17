@@ -12,7 +12,7 @@ local Button1 = Gui.Frame.Button1
 local Button2 = Gui.Frame.Button2
 local Button3 = Gui.Frame.Button2.Button3
 local Button4 = Gui.Button4
-local clickCountLabel = Gui:WaitForChild("LinkedLabel")
+local clickCountLabel = Gui.LinkedLabel
 
 local LabelTextReducer = function(state, action)
     state = state or {}
@@ -45,7 +45,7 @@ function TestController:Start()
     Button4 = Robi.createButton(Button4, {TestButton = RobiClasses.ColorChangerButton.new()}, self.objects)
     clickCountLabel = Robi.createLabel(clickCountLabel, {
         TestLabel = RobiClasses.TestLabel.new(self.store)
-    })
+    }, self.objects)
 
 end
 

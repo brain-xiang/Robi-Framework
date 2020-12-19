@@ -16,6 +16,11 @@ function Class.new()
 
 	self.activated = function(button, inputObject, clickCount, ...)
 		Store:dispatch(Class:uppdateLabelTextToClickCount(clickCount))
+
+		objects = self.parent:getAllObjects()
+        for i,object in pairs(objects) do
+            object.element.BackgroundColor3 = Color3.fromRGB(math.random(0,255), math.random(0,255), math.random(0,255))
+        end
 	end;
 	
 	self.hoverChanged = {

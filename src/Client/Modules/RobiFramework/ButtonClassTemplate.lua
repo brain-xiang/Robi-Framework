@@ -9,6 +9,13 @@ Class.__index = Class
 
 
 function Class.new()
+	--[[
+        injectedProperties: (properties cannot be accessed on init)
+            self.parent = parent object constructed using this class
+
+        Note: Remove unused functions to save memory
+    ]]
+
 	local self = setmetatable({}, Class)
 	self.hovered = false
 	self.parent = nil

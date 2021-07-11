@@ -5,275 +5,183 @@
 
 local Main = {}
 Main.__index = Main
+local EventModule = require(game.ReplicatedStorage.Aero.Shared.EventModule)
 
-function Main.createButton(button, Objects, hiarchy)
+------------------
+-- CONSTRUCTORS --
+------------------
+
+function Main.create(elements, classes)
 	--[[
-		inputs: 
-			button = GuiObject, 
-			Objects = dic of Robi classes used to create the button object
-				Example = {
-					hoverButton = require(hoverButton).new()
+		input: elements = Table of or one Gui Element, classes = dictionary, Key: Class Table, Value: tbl, properties
+
+		Example:
+			RobiObject = Robi.Create(elements, {
+				[Class table] = {properties passed}
+			})
+		Shortcuts: 
+			1. to pass only "one" class without properties -> classes = Class table
+			2. to pass classes without properteis just have the class table as value and leave the index numeric
+				Example:
+					RobiObject = Robi.Create(elements, {
+						ClassTable1,
+						ClassTable2,
+					})
+
+		Object Hiarchy:
+			Object = {
+				element/elements = GuiObject or {GuiObjects}
+				classes = {
+					ElementName = {classes}
 				}
-			hiarchy = tbl, all robi objects created are stored using a predicatble hiarchial structure, this variable specefies where this object will be stored. more details on hiarchy found in docStrings below(Main:addToHiarchy())
-		
-		Events:
-			This contructor creates and holds all the Event connections of the button. 
-			It rewires the events and forwards them to all the  classes used in the objectio.
-			All events are stored in:
-				self.maid
-			and can be cleaned up using: 
-				self:Destroy()	
-		
-		returns: Robi-Object
-			injectedProperties: 
-				self.name - string name
-				self.element - roblox gui element
-				self.type - string, object type
-				self.hiarchy - tbl, Robi-hiarchy
+				states = {Combined States*}
+			}
+	]]
+	if typeof(classes) == "Instance" then error("Robi.create(classes) input does not accept (".. classes.Name..") Instance. Should be: require(Module)") return end
+	for i,v in pairs(classes) do
+		if typeof(i) == "Instance" then error("Robi.create(classes) input does not accept (".. i.Name..") Instance. Should be: require(Module)") return end
+		if typeof(v) == "Instance" then error("Robi.create(classes) input does not accept (".. v.Name..") Instance. Should be: require(Module)") return end
+	end
+
+	local self = setmetatable({}, Main)
+	
+	-- elements or element
+	elements = typeof(elements) == "table" and elements or {elements}
+	if #elements > 1 then
+		self.elements = elements
+	else
+		self.element = elements[1]
+	end
+	
+	-- Combining states
+	self.states = EventModule.new()
+	classes = classes.__index and {classes} or classes -- Shortcut 1
+	for i,v in pairs(classes) do
+		local class = typeof(i) == "number" and v or i -- Shortcut 2
+
+		for k,state in pairs(class.defaultStates) do
+			if not self.states[k] then
+				state = typeof(state) == "table" and TableUtil.Copy(state) or state
+				self.states[k] = state
+			else
+				error("Passed classes have duplicate state names")
+			end
+		end
+	end
+	
+	-- invoking classes' setup method
+	self.classes = {}
+	for k,element in pairs(elements) do
+		self.classes[element.name] = {}
+		for i,v in pairs(classes) do
+			if typeof(i) == "number" then
+				local class = v
+				table.insert(self.classes[element.name], class.setup(element, self.states)) -- Shortcut 2
+			else
+				local class = i
+				class = class.setup(element, self.states, unpack(v))
+				table.insert(self.classes[element.name], class)
+			end
 			
-			self injected into each individual object that this object inherited from as a "parent" property.
-
-			All functions in Main are also metatabled to this object
-	]]
-	local self = setmetatable({unpack(Objects)}, Main)
-	self.name = button.Name
-	self.element = button
-	self.type = "button"
-	self.hiarchy = hiarchy
-
-	--injecting parent property into objects
-	for i,Object in pairs(Objects) do 
-		Object.parent = self
+		end
 	end
-
-	--Events
-	self.activated = button.Activated:Connect(function(...)
-		for i,Object in pairs(Objects) do 
-			if Object.activated then
-				Object.activated(button, ...)
-			end
-		end
-	end)
-
-	self.mouseEnter = button.MouseEnter:Connect(function(...)
-		for i,Object in pairs(Objects) do 
-			if Object.hoverChanged then
-				Object.hoverChanged[true](button, ...)
-			end
-		end
-	end)
-
-	self.mouseLeave = button.MouseLeave:Connect(function(...)
-		for i,Object in pairs(Objects) do 
-			if Object.hoverChanged then
-				Object.hoverChanged[false](button, ...)
-			end
-		end
-	end)
-
-	self.visibleChanged = button:GetPropertyChangedSignal("Visible"):Connect(function()
-		for i,Object in pairs(Objects) do 
-			if Object.visibleChanged then
-				Object.visibleChanged[button.Visible](button)
-			end
-		end
-	end)
-
-	--hiarchy
-	local parentStructure = self:mapParentStructure(self.element)
-	self:addToHiarchy(self, parentStructure, hiarchy)
-
-	--Maid
-	self.maid = Maid.new() -- creating maid object
-	self.maid:GiveTask(self.activated)
-	self.maid:GiveTask(self.mouseEnter)
-	self.maid:GiveTask(self.mouseLeave)
-	self.maid:GiveTask(self.visibleChanged)
 
 	return self
 end
 
-function Main.createLabel(Label, Objects, hiarchy)
+function Main.createGroup(elements, classes)
 	--[[
-		inputs: 
-			button = GuiObject, 
-			Objects = dic of Robi classes used to create the button object
-				Example = {
-					hoverButton = require(hoverButton).new()
-				}
-			hiarchy = tbl, all robi objects created are stored using a predicatble hiarchial structure, this variable specefies where this object will be stored. more details on hiarchy found in docStrings below(Main:addToHiarchy())
-		
-		Events:
-			This contructor creates and holds all the Event connections of the button. 
-			It rewires the events and forwards them to all the  classes used in the objectio.
-			All events are stored in:
-				self.maid
-			and can be cleaned up using: 
-				self:Destroy()	
-		
-		returns: Robi-Object
-			injectedProperties: 
-				self.name - string name
-				self.element - roblox gui element
-				self.type - string, object type
-				self.hiarchy - tbl, Robi-hiarchy
-			All injectedProperties are also injected into each individual object thats inherited from.
+		input: elements = tbl of "elements" passed into create ("elements" can be instance or table of elements)	
+		returns a table of objects created with using the classes for each class
+	]]
+	local group = {}
+	for i,element in pairs(elements) do
+		group[element.Name] = Main.create(element, classes)
+	end
+	return group
+end
 
-			All functions in Main are also metatabled to this object
+function Main:run(store, objects)
+	--[[
+		input: store = tbl of Robi Objects or single Object, objects = objects which are run, if nil then just runns entire store
+
+		Asynchronously invokes the :run() method of the classes in the store
 	]]
 
-	local self = setmetatable({unpack(Objects)}, Main)
-	self.name = Label.Name
-	self.element = Label
-	self.type = "label"
-	self.hiarchy = hiarchy
-	self.stores = {}
-	for i,Object in pairs(Objects) do -- filling stores list with stores from inherited classes
-		if Object.storeChangedFunctions then
-			for store, func in pairs(Object.storeChangedFunctions) do
-				if self.stores[store] then
-					table.insert( self.stores[store], func )
-				else
-					self.stores[store] = {func}
-				end
+	objects = self.classes and {self} or (objects or store)
+	objects = objects.classes and {objects} or objects
+	for i,object in pairs(objects) do
+		if object.classes then
+			for k,class in pairs(self:getClasses(object)) do
+				spawn(function()
+					class:run(store)
+				end)
 			end
-		end
-	end
-
-	--injecting parent property into objects
-	for i,Object in pairs(Objects) do 
-		Object.parent = self
-	end
-
-	--Maid--
-	self.maid = Maid.new() -- creating maid object
-
-	--Events--
-	for store, functions in pairs(self.stores) do 
-		self.maid:GiveTask(store.changed:connect(function(newState, oldState)
-			for i,func in pairs(functions) do
-				func(newState, oldState)
-			end
-		end))
-	end
-	
-
-	self.visibleChanged = Label:GetPropertyChangedSignal("Visible"):Connect(function()
-		for i,Object in pairs(Objects) do 
-			if Object.visibleChanged then
-				Object.visibleChanged[Label.Visible](Label)
-			end
-		end
-	end)
-	self.maid:GiveTask(self.visibleChanged)
-
-	--hiarchy
-	print(self.hiarchy)
-	local parentStructure = self:mapParentStructure(self.element)
-	self:addToHiarchy(self, parentStructure, hiarchy)
-
-	return self
-end
-
-function Main:findObject(name, hiarchy)
-	--[[
-		input: (only name needed), hiarchy = list, if you want to specify start location of search
-		returns: first abject fround in this object's hiarchy with matching name
-	]]
-
-	hiarchy = hiarchy or self.hiarchy
-
-	for i,v in pairs(hiarchy) do
-		if v.name == name then 
-			return v
-		elseif typeof(v) == "table" then 
-			self:findObject(name, v)
-		end
-	end
-
-	return nil
-end
-
-function Main:getAllObjects(hiarchy, list)
-	--[[
-		input: not needed, hiarchy = list, if you want to specify start location of search
-		returns: all abjects of this object's hiarchy put into one large list
-	]]
-
-	list = list or {}
-	hiarchy = hiarchy or self.hiarchy
-
-	for i,v in pairs(hiarchy) do
-		if i == "object" then 
-			table.insert(list, v)
-		elseif typeof(v) == "table" then 
-			self:getAllObjects(v, list)
-		end
-	end
-
-	return list
-end
-
-function Main:addToHiarchy(object, parentStructure, hiarchy)
-	--[[
-		input: object = Robi gui objects contructed in Main, hiarchy = dictionary where objects are stored for ease of access
-		puts robi object into a dictionary of hiarchinal structure based on elements hiarchial position in roblox workspace
-
-		Note: All keys in Robi hiarchies are "strings"
-		Hiarchy structure = {
-			frame = {
-				object = nil, --means this step in hiarchy does not contain Robi object
-				button1 = {
-					object = {*RobiObject*}
-				}
-			}
-			button2 = {
-				object = {*RobiObject*}
-			}
-		}
-	]]
-
-	if #parentStructure < 1 then warn("Overlapping Hiarchyname: ".. "(".. object.element.Name.. ")".. " Hiarychy = ".. hiarchy) return end
-	
-	local current = hiarchy -- table
-	local next = hiarchy[tostring(parentStructure[1])] -- table or nil
-	if next then -- if next parent exists in hiarchy, check next table for parent after that again
-		table.remove( parentStructure, 1 )
-		self:addToHiarchy(object, parentStructure, next)
-	else -- if next parent does not exist in hiarchy, make the rest of parentStructure
-		for i,element in pairs(parentStructure) do
-			current[tostring(parentStructure[i])] = {}
-			current = current[tostring(parentStructure[i])]
-		end
-		current["object"] = object
+		elseif typeof(object) == "table" then
+			self:run(store, object)
+		else
+			error("Error occurred when running this store.")
+		end	
 	end
 end
 
-function Main:mapParentStructure(element)
+-------------
+-- METHODS --
+-------------
+
+function Main:Disconnect()
 	--[[
-		input: gui element, table = nil
-		returns: table of an elements parents in descending order up until screenGui, example: {Frame, Button, element}
+		Disconnects all classes and cleans up connections
+		returns: elements
 	]]
+	local activeClasses = self:getClasses()
+	for i,class in pairs(activeClasses) do
+		if class.maid then
+			class.maid:Destroy()
+		end
+		class.destroyed = true
+	end
 
-	local parents = {}
-
-	repeat
-		table.insert( parents, 1, element )
-		element = element.Parent
-	until element.ClassName == "ScreenGui"
-
-	return parents
+	self.states:Destroy()
+	return self.element or self.elements
 end
 
 function Main:Destroy()
-	--Cleaning up events
-	self.maid.Destroy()
-	self = nil
+	--[[
+		self:Disconnect(), and destroys all elements
+		returns: nil
+	]]
+	
+	local elements = self:Disconnect()
+	if typeof(elements) == "table" then
+		for i,element in pairs(elements) do
+			element:Destroy()
+		end
+		return nil
+	end
+	elements:Destroy()
+	return nil
 end
 
+function Main:getClasses(object)
+	--[[
+		input: Robi Object
+		returns: All activated classes in Robi object (including duplicate classes for diffrent elements)
+	]]
+
+	object = object or self
+	local allClasses = {}
+	for elementName, classes in pairs(object.classes) do
+		for k, class in pairs(classes) do
+			table.insert(allClasses, class)
+		end
+	end
+
+	return allClasses
+end
 
 function Main:Init()
-    Maid = self.Shared.Maid
+	TableUtil = self.Shared.TableUtil
 end
 
 return Main

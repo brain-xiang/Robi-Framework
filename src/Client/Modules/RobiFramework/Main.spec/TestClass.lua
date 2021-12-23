@@ -10,6 +10,8 @@ Class Description:
 local Class = {}
 Class.__index = Class
 
+Class.name = "TestClass"
+
 Class.defaultStates = {
     a = 1,
 	b = 2,
@@ -22,37 +24,46 @@ Class.TYPE_REQUIREMENT = nil -- Required elment type, nil = all*
 -- METHODS --
 -------------
 
-function Class:run(store)
+function Class:testFunc()
+	return true
+end
+
+function Class:run()
 	--[[
-		input: element = GuiObject, states = Robi objects state, store = Robi store where object is located
-
 		Method invoked asynchronously (at the same time)
-		Used to run evetns and main functionalities, access to all states and store
-
-		returns: self
+		Fired when :run() is called on object
+		Used to run evetns and main functionalities,
+		*access to all states, store, classes*
 	]]
-	self.store = store
 
 	self.states.mutated:Connect(function(old, new)
 		self.states.mutationCount = 1
 	end)
 end
 
-function Class.setup(element, states, p1, p2)
+function Class.setup(object, p1, p2)
 	--[[
-		input: element = GuiObject, states = Robi objects state
+		input: object: tbl = robi object the class is created in, ... = arguments passed
 
 		Method invoked one-by-one synchronously
-		Used to setup gui, states and object, Only access to local states
+		Fired when robi object is created
+		Used to setup states and object, 
+		*Only access to local states and local class*
 
 		returns: self
 	]]
-	local self = setmetatable({}, Class)
+	local metaTable = { -- custom metatable allows access "Class" and entire Robi Object
+		__index = function(self, i)
+			if Class[i] then return Class[i] end -- CHECK CLASS FIRST
+			if object[i] then return object[i] end
+			return
+		end
+	}
+	local self = setmetatable({}, metaTable)
 	if self.TYPE_REQUIREMENT and not element:IsA(self.TYPE_REQUIREMENT) then error(element.Name.. "(Element) does not match this class's TYPE_REQUIREMENT") end
+	
 
-	self.element = element
-	self.states = states
-	self.states.properties = {p1, p2}
+	self.states.passedPoperties = {p1, p2}
 
 	return self
 end

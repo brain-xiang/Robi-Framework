@@ -61,32 +61,29 @@ function Main.create(elements, classes)
 
 		for k,state in pairs(class.defaultStates) do
 			if not self.states[k] then
-				self.states[k] = typeof(state) == "table" and TableUtil.Copy(state) or state
+				state = typeof(state) == "table" and TableUtil.Copy(state) or state
+				self.states[k] = state
 			else
 				error("Passed classes have duplicate state names")
 			end
 		end
 	end
-
-	-- Maid and cleanup
-	self.maid = Maid.new()
-	self.states.destroyed = false
-
+	
 	-- invoking classes' setup method
 	self.classes = {}
-	for i,v in pairs(classes) do
-		if typeof(i) == "number" then
-			-- NO properties passed, i = num, v = class
-			local class = v
-			if self.classes[class.name] then warn("Robi Obj: ", self, " Got passed classes with the same name: ", class.name, " - [1] = ", class, " [2] = ", self.classes[class.name]) return end
-			self.classes[class.name] = class.setup(self)
-		else
-			-- properties passed, i = class, v = properties
-			local class = i
-			if self.classes[class.name] then warn("Robi Obj: ", self, " Got passed classes with the same name: ", class.name, " - [1] = ", class, " [2] = ", self.classes[class.name]) return end
-			self.classes[class.name] = class.setup(self, unpack(v))
+	for k,element in pairs(elements) do
+		self.classes[element.name] = {}
+		for i,v in pairs(classes) do
+			if typeof(i) == "number" then
+				local class = v
+				table.insert(self.classes[element.name], class.setup(element, self.states)) -- Shortcut 2
+			else
+				local class = i
+				class = class.setup(element, self.states, unpack(v))
+				table.insert(self.classes[element.name], class)
+			end
+			
 		end
-		
 	end
 
 	return self
@@ -104,10 +101,6 @@ function Main.createGroup(elements, classes)
 	return group
 end
 
--------------
--- METHODS --
--------------
-
 function Main:run(store, objects)
 	--[[
 		input: store = tbl of Robi Objects or single Object, objects = objects which are run, if nil then just runns entire store
@@ -115,14 +108,13 @@ function Main:run(store, objects)
 		Asynchronously invokes the :run() method of the classes in the store
 	]]
 
-	objects = self.classes and {self} or (objects or store) -- checking if ran on an object or Main
+	objects = self.classes and {self} or (objects or store)
+	objects = objects.classes and {objects} or objects
 	for i,object in pairs(objects) do
 		if object.classes then
-			-- its an Robi Object
-			object.store = store
-			for k,class in pairs(object.classes) do
+			for k,class in pairs(self:getClasses(object)) do
 				spawn(function()
-					class:run()
+					class:run(store)
 				end)
 			end
 		elseif typeof(object) == "table" then
@@ -133,14 +125,23 @@ function Main:run(store, objects)
 	end
 end
 
+-------------
+-- METHODS --
+-------------
+
 function Main:Disconnect()
 	--[[
 		Disconnects all classes and cleans up connections
 		returns: elements
 	]]
+	local activeClasses = self:getClasses()
+	for i,class in pairs(activeClasses) do
+		if class.maid then
+			class.maid:Destroy()
+		end
+		class.destroyed = true
+	end
 
-	self.maid:Destroy()
-	self.states.destroyed = true
 	self.states:Destroy()
 	return self.element or self.elements
 end
@@ -162,11 +163,24 @@ function Main:Destroy()
 	return nil
 end
 
-function Main:Init()
-    --[[
-		Method used for AGF Access 
+function Main:getClasses(object)
+	--[[
+		input: Robi Object
+		returns: All activated classes in Robi object (including duplicate classes for diffrent elements)
 	]]
-	Maid = self.Shared.Maid
+
+	object = object or self
+	local allClasses = {}
+	for elementName, classes in pairs(object.classes) do
+		for k, class in pairs(classes) do
+			table.insert(allClasses, class)
+		end
+	end
+
+	return allClasses
+end
+
+function Main:Init()
 	TableUtil = self.Shared.TableUtil
 end
 

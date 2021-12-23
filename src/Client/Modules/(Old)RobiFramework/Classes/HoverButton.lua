@@ -75,6 +75,16 @@ function Class:run(store)
 	]]
 	self.store = store
 	
+	if self.states.hoverEffect == "FadeFrame" then
+		self.HoverFrame = self.element.HoverFrame
+		if not self.HoverFrame then error("[Robi] HoverButton Class was applied on: ".. self.element.Name.. "(Element) which did not have element.HoverFrame") end
+		
+	elseif self.states.hoverEffect == "HoverFrame" then
+		self.hoverFrameProperties = { -- Saving default hover Frame properties for easier tweening
+			Size = self.HoverFrame.Size,
+		}
+	end
+
 	self.states:GetPropertyChangedSignal("hovered"):Connect(function(old, new)
 		self[self.states.hoverEffect](self, new)
 	end)
@@ -118,11 +128,6 @@ function Class.setup(element, states)
 
 	self.element = element
 	self.states = states
-	self.HoverFrame = element.HoverFrame
-	if not self.HoverFrame then error("[Robi] HoverButton Class was applied on: ".. element.Name.. "(Element) which did not have element.HoverFrame") end
-	self.hoverFrameProperties = { -- Saving default hover Frame properties for easier tweening
-		Size = self.HoverFrame.Size,
-	}
 
 	return self
 end
